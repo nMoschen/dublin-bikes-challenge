@@ -1,4 +1,4 @@
-import { Field, FieldType, RawDatasetRow } from "../types/schema.js";
+import { Field, FieldType, RawRow } from "../types/schema.js";
 import {
   buildFieldName,
   normalizeNullable,
@@ -24,7 +24,7 @@ type InferenceType =
 
 let cachedSchema: Field[] | null = null;
 
-export function deriveSchema(rows: RawDatasetRow[]): Field[] {
+export function deriveSchema(rows: RawRow[]): Field[] {
   const displayNames = collectDisplayNames(rows);
 
   return displayNames.map((displayName) => {
@@ -59,10 +59,7 @@ export async function getSchema(): Promise<Field[]> {
  * - counts: how many values look like BOOLEAN, INTEGER, FLOAT, DATE, or fallback TEXT
  * - options: unique text values (for possible OPTION type)
  */
-function buildFieldStats(
-  displayName: string,
-  rows: RawDatasetRow[],
-): FieldStats {
+function buildFieldStats(displayName: string, rows: RawRow[]): FieldStats {
   const counts: Record<InferenceType, number> = {
     [FieldType.BOOLEAN]: 0,
     [FieldType.DATE]: 0,
@@ -123,7 +120,7 @@ function buildFieldStats(
 /**
  * Collects all attributes present in a raw dataset row (AKA display name)
  */
-function collectDisplayNames(rows: RawDatasetRow[]): string[] {
+function collectDisplayNames(rows: RawRow[]): string[] {
   const seenDisplayNames = new Set<string>();
   const displayNames: string[] = [];
 

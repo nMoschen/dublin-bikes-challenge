@@ -1,12 +1,12 @@
-import { RawDatasetRow } from "../types/schema.js";
+import { RawRow } from "../types/schema.js";
 
 const DUBLIN_BIKES_URL =
   "https://app-media.noloco.app/noloco/dublin-bikes.json";
 
-let cachedRows: null | RawDatasetRow[] = null;
-let inflightRequest: null | Promise<RawDatasetRow[]> = null;
+let cachedRows: null | RawRow[] = null;
+let inflightRequest: null | Promise<RawRow[]> = null;
 
-export async function getDatasetRows(): Promise<RawDatasetRow[]> {
+export async function getDatasetRows(): Promise<RawRow[]> {
   if (cachedRows !== null) {
     return cachedRows;
   }
@@ -27,7 +27,7 @@ export async function getDatasetRows(): Promise<RawDatasetRow[]> {
   return inflightRequest;
 }
 
-async function fetchRows(): Promise<RawDatasetRow[]> {
+async function fetchRows(): Promise<RawRow[]> {
   const response = await fetch(DUBLIN_BIKES_URL);
 
   if (!response.ok) {
@@ -41,14 +41,14 @@ async function fetchRows(): Promise<RawDatasetRow[]> {
     throw new Error("Dataset is not an array");
   }
 
-  const datasetRows = payload.filter(isDatasetRow);
-  if (datasetRows.length !== payload.length) {
+  const rawRows = payload.filter(isValidRawRow);
+  if (rawRows.length !== payload.length) {
     throw new Error("Dataset must be an array of JSON objects");
   }
 
-  return datasetRows;
+  return rawRows;
 }
 
-function isDatasetRow(value: unknown): value is RawDatasetRow {
+function isValidRawRow(value: unknown): value is RawRow {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

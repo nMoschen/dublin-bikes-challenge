@@ -14,4 +14,4 @@ export interface Field {
   type: FieldType;
 }
 
-export type RawDatasetRow = Record<string, unknown>;
+export type RawRow = Record<string, unknown>;
