@@ -5,7 +5,7 @@ import { dataRouter } from "./routes/data.routes.js";
 import { schemaRouter } from "./routes/schema.routes.js";
 
 const app = express();
-const port = process.env.PORT ?? "9001";
+const port = 3000;
 
 app.use(cors());
 app.use(express.json());
@@ -20,5 +20,5 @@ const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
 app.use(errorHandler);
 
 app.listen(port, () => {
-  console.log(`Listening on port ${port}`);
+  console.log(`Listening on port ${String(port)}`);
 });

@@ -1,38 +1,41 @@
 import { parseISO } from "date-fns";
 import type { TableColumn, TableRow } from "../components/Table";
-import { getData } from "./data.service";
-import { getSchema, SchemaType } from "./schema.service";
+import { getData, type Filters } from "./data.service";
+import { getSchema, SchemaType, type Schema } from "./schema.service";
+import type { TableAppliedFilter } from "../components/TableFilters";
 
-export interface TableData {
-  rows: TableRow[];
-  columns: TableColumn[];
-}
-
-export async function getTableData(): Promise<TableData> {
-  const [dataResponse, schemaResponse] = await Promise.all([
-    getData(),
-    getSchema(),
-  ]);
-
-  if (!dataResponse.ok) {
-    throw new Error(dataResponse.message);
-  }
+export async function getTableColumns(): Promise<TableColumn[]> {
+  const schemaResponse = await getSchema();
 
   if (!schemaResponse.ok) {
     throw new Error(schemaResponse.message);
   }
 
-  const columns: TableColumn[] = schemaResponse.data.map((schema) => ({
+  return schemaResponse.data.map(generateTableColumn);
+}
+
+export async function getTableRows(
+  filters?: TableAppliedFilter[],
+): Promise<TableRow[]> {
+  const dataResponse = await getData(getDataFilters(filters));
+
+  if (!dataResponse.ok) {
+    throw new Error(dataResponse.message);
+  }
+
+  return dataResponse.data;
+}
+
+function generateTableColumn(schema: Schema): TableColumn {
+  return {
     field: schema.name,
     headerName: formatHeaderName(schema.display),
     type: getTableColumnType(schema.type),
     headerAlign: "left",
     align: "left",
     valueGetter: generateValueGetter(schema.type),
-    valueOptions: schema.options,
-  }));
-
-  return { columns, rows: dataResponse.data };
+    options: schema.options,
+  };
 }
 
 function formatHeaderName(headerName: string): string {
@@ -57,7 +60,26 @@ function getTableColumnType(schemaType: SchemaType): TableColumn["type"] {
 
 function generateValueGetter(schemaType: SchemaType) {
   if (schemaType === SchemaType.Date) {
-    return (value: string | null) => value !== null && parseISO(value);
+    return parseDateValue;
   }
   return undefined;
+}
+
+function getDataFilters(tableFilters?: TableAppliedFilter[]): Filters {
+  if (!tableFilters?.length) {
+    return {};
+  }
+
+  const where = tableFilters.reduce((clause, { field, operator, value }) => {
+    if (field === "" || operator === "" || value === "") {
+      return clause;
+    }
+    return { ...clause, [field]: { [operator]: value } };
+  }, {});
+
+  return { where };
+}
+
+function parseDateValue(value: string | null) {
+  return value !== null && parseISO(value);
 }
