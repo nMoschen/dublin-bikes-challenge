@@ -5,10 +5,11 @@ import {
   type TableColumn,
   type TablePagination,
   type TableRow,
+  type TableSorting,
 } from "./components/Table";
 import { getTableColumns, getTableRows } from "./services/table.service";
 import type {
-  TableAppliedFilter,
+  TableFilter,
   TableFiltersChangeEvent,
 } from "./components/TableFilters";
 
@@ -18,24 +19,27 @@ function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [totalRows, setTotalRows] = useState<number>(0);
-  const [pendingFilters, setPendingFilters] = useState<
-    TableAppliedFilter[] | null
-  >(null);
-  const [filters, setFilters] = useState<TableAppliedFilter[]>([]);
+  const [pendingFilters, setPendingFilters] = useState<TableFilter[] | null>(
+    null,
+  );
+  const [filters, setFilters] = useState<TableFilter[]>([]);
   const [pagination, setPagination] = useState<TablePagination>({
     page: 0,
     pageSize: 25,
   });
+  const [sorting, setSorting] = useState<TableSorting>([]);
 
   const fetchRows = useCallback(
     (
-      appliedFilters: TableAppliedFilter[],
-      { page, pageSize }: TablePagination,
+      appliedFilters: TableFilter[],
+      appliedPagination: TablePagination,
+      appliedSorting: TableSorting,
     ) => {
       getTableRows({
         filters: appliedFilters,
-        page: page + 1,
-        size: pageSize,
+        page: appliedPagination.page + 1,
+        size: appliedPagination.pageSize,
+        sorting: appliedSorting,
       })
         .then(({ rows, total }) => {
           setErrorMessage(null);
@@ -64,8 +68,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetchRows(filters, pagination);
-  }, [fetchRows, filters, pagination]);
+    fetchRows(filters, pagination, sorting);
+  }, [fetchRows, filters, pagination, sorting]);
 
   useEffect(() => {
     if (pendingFilters === null) {
@@ -96,6 +100,15 @@ function App() {
     setPagination(model);
   }, []);
 
+  const handleSortingChange = useCallback((model: TableSorting) => {
+    setIsLoading(true);
+    setSorting(model);
+    setPagination((currentModel) => ({
+      ...currentModel,
+      page: 0,
+    }));
+  }, []);
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       {errorMessage && <Typography variant="body1">{errorMessage}</Typography>}
@@ -105,6 +118,8 @@ function App() {
         rowCount={totalRows}
         pagination={pagination}
         onPaginationChange={handlePaginationChange}
+        sorting={sorting}
+        onSortingChange={handleSortingChange}
         isLoading={isLoading}
         onChange={handleFiltersChange}
       />

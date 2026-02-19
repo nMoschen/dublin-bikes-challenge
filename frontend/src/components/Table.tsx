@@ -3,6 +3,7 @@ import {
   DataGrid,
   type GridColDef,
   type GridPaginationModel,
+  type GridSortModel,
 } from "@mui/x-data-grid";
 import { TableFilters, type TableFiltersChangeEvent } from "./TableFilters";
 import { memo, useMemo, type FC } from "react";
@@ -15,6 +16,7 @@ export type TableColumn<TRow extends TableRow = TableRow> = GridColDef<TRow> & {
 };
 
 export type TablePagination = GridPaginationModel;
+export type TableSorting = GridSortModel;
 
 export interface TableProps<TRow extends TableRow = TableRow> {
   rows: TRow[];
@@ -22,6 +24,8 @@ export interface TableProps<TRow extends TableRow = TableRow> {
   rowCount: number;
   pagination: TablePagination;
   onPaginationChange: (pagination: TablePagination) => void;
+  sorting: TableSorting;
+  onSortingChange: (sorting: TableSorting) => void;
   onChange: (event: TableFiltersChangeEvent) => void;
   isLoading?: boolean;
 }
@@ -34,6 +38,8 @@ export const Table: FC<TableProps> = memo(function Table<
   rowCount,
   pagination,
   onPaginationChange,
+  sorting,
+  onSortingChange,
   onChange,
   isLoading,
 }: TableProps<TRow>) {
@@ -69,8 +75,11 @@ export const Table: FC<TableProps> = memo(function Table<
         loading={isLoading}
         pagination
         paginationMode="server"
+        sortingMode="server"
         paginationModel={pagination}
         onPaginationModelChange={onPaginationChange}
+        sortModel={sorting}
+        onSortModelChange={onSortingChange}
         pageSizeOptions={[10, 25, 50, 100]}
         disableRowSelectionOnClick
         disableMultipleRowSelection

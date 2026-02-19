@@ -1,8 +1,8 @@
 import { parseISO } from "date-fns";
-import type { TableColumn, TableRow } from "../components/Table";
-import { getData, type Filters } from "./data.service";
+import type { TableColumn, TableRow, TableSorting } from "../components/Table";
+import { getData, type Filters, type OrderBy } from "./data.service";
 import { getSchema, SchemaType, type Schema } from "./schema.service";
-import type { TableAppliedFilter } from "../components/TableFilters";
+import type { TableFilter } from "../components/TableFilters";
 
 export async function getTableColumns(): Promise<TableColumn[]> {
   const schemaResponse = await getSchema();
@@ -33,9 +33,10 @@ export async function getTableRows(
 }
 
 export interface GetTableRowsOptions {
-  filters?: TableAppliedFilter[];
+  filters?: TableFilter[];
   page: number;
   size: number;
+  sorting: TableSorting;
 }
 
 export interface GetTableRowsResult {
@@ -84,9 +85,16 @@ function generateValueGetter(schemaType: SchemaType) {
   return undefined;
 }
 
-function getDataFilters({ filters, page, size }: GetTableRowsOptions): Filters {
+function getDataFilters({
+  filters,
+  page,
+  size,
+  sorting,
+}: GetTableRowsOptions): Filters {
+  const orderBy = getOrderBy(sorting);
+
   if (!filters?.length) {
-    return { page, size };
+    return { page, size, orderBy };
   }
 
   const where = filters.reduce((clause, { field, operator, value }) => {
@@ -96,9 +104,25 @@ function getDataFilters({ filters, page, size }: GetTableRowsOptions): Filters {
     return { ...clause, [field]: { [operator]: value } };
   }, {});
 
-  return { where, page, size };
+  return { where, page, size, orderBy };
 }
 
 function parseDateValue(value: string | null) {
   return value !== null && parseISO(value);
+}
+
+function getOrderBy(sorting: TableSorting): OrderBy | undefined {
+  const [sortItem] = sorting;
+  if (
+    sortItem === undefined ||
+    sortItem.sort === null ||
+    sortItem.sort === undefined
+  ) {
+    return undefined;
+  }
+
+  return {
+    field: sortItem.field,
+    direction: sortItem.sort,
+  };
 }

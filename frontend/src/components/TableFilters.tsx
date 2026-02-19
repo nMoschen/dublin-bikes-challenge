@@ -4,14 +4,14 @@ import { memo, useState, type ChangeEvent, type FC } from "react";
 import type { FilterOperator } from "../services/data.service";
 import type { TableColumn } from "./Table";
 
-export interface TableAppliedFilter {
+export interface TableFilter {
   field: string;
   operator: FilterOperator | "";
   value: string | number;
 }
 
 export interface TableFiltersChangeEvent {
-  filters: TableAppliedFilter[];
+  filters: TableFilter[];
 }
 
 export interface TableFiltersField {

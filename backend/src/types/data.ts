@@ -2,6 +2,7 @@ export interface Filters {
   page: number;
   size: number;
   where?: FilterWhereClause;
+  orderBy?: OrderBy;
 }
 
 export type FilterWhereClause = Record<string, FilterField>;
@@ -12,6 +13,16 @@ export enum FilterOperator {
   Equal = "eq",
   GreaterThan = "gt",
   LowerThan = "lt",
+}
+
+export enum SortDirection {
+  Asc = "asc",
+  Desc = "desc",
+}
+
+export interface OrderBy {
+  field: string;
+  direction: SortDirection;
 }
 
 export type StandardizedRow = Record<string, StandarizedRowValue>;

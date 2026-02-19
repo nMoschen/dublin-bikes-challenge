@@ -7,6 +7,7 @@ export interface Filters {
   where?: FilterWhereClause;
   page?: number;
   size?: number;
+  orderBy?: OrderBy;
 }
 export type FilterWhereClause = Record<string, FilterField>;
 export type FilterField = Partial<Record<FilterOperator, unknown>>;
@@ -14,6 +15,13 @@ export enum FilterOperator {
   Equal = "eq",
   GreaterThan = "gt",
   LowerThan = "lt",
+}
+
+export type SortDirection = "asc" | "desc";
+
+export interface OrderBy {
+  field: string;
+  direction: SortDirection;
 }
 
 export interface PaginatedData<TData> {

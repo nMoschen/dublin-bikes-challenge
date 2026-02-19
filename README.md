@@ -5,7 +5,7 @@ This repository contains my solution for Noloco's take-home exercise: fetch the 
 ## Implemented scope
 
 - `GET /schema` returns dynamically inferred field metadata.
-- `POST /data` returns paginated standardized rows and supports filtering with `where`.
+- `POST /data` returns paginated standardized rows and supports filtering and ordering.
 - Field names are normalized to camelCase.
 - Values are normalized to the most reasonable type.
 - Frontend table that:
@@ -13,6 +13,7 @@ This repository contains my solution for Noloco's take-home exercise: fetch the 
   - Renders columns dynamically
   - Lets users apply a single filter (`eq`, `gt`, `lt`)
   - Supports server-side pagination (`page`, `size`, `total`)
+  - Supports server-side sorting (`orderBy`)
 
 ## Tech stack
 
@@ -37,6 +38,7 @@ This repository contains my solution for Noloco's take-home exercise: fetch the 
 - Schema inference is fully dynamic and normalizes noisy values (`null`/empty, booleans, numbers, dates), but `OPTION` detection is heuristic-based and can be imperfect for edge cases.
 - I scoped filtering to a single field (`where` with one operator) to keep validation and behavior predictable within the timebox.
 - The API returns parsed and standardized camelCase values in `/data` (not the raw third-party payload), so the frontend can stay simple and schema-driven.
+- I deliberately kept frontend and backend models separated (even where they currently match) so each side can evolve independently without tight coupling.
 
 ## How it works
 
@@ -68,7 +70,7 @@ Normalization details:
 - numbers parse from numeric strings (via `Number`)
 - dates parse ISO + known formats (`yyyy-MM-dd HH:mm:ss`, `yyyy-MM-dd`, `dd/MM/yyyy`, `d/M/yyyy`, `dd-MM-yyyy`, `d-M-yyyy`)
 
-### 3) Data standardization + filtering + pagination
+### 3) Data standardization + filtering + ordering + pagination
 
 `POST /data` returns rows keyed by standardized schema names, not original display names.
 
@@ -80,6 +82,10 @@ Supported request shape:
 {
   "page": 1,
   "size": 25,
+  "orderBy": {
+    "field": "availableBikes",
+    "direction": "desc"
+  },
   "where": {
     "<fieldName>": { "<operator>": "<value>" }
   }
@@ -94,6 +100,7 @@ Supported operators:
 Current behavior/constraints:
 
 - Only one field filter at a time
+- Sorting supports one field at a time via `orderBy`
 - Invalid payloads/operators/field names return `400`
 - Date values are internally handled as `Date` and serialized as ISO strings in JSON responses
 - Pagination defaults are `page=1` and `size=25` (max size `100`)
@@ -124,7 +131,11 @@ curl -X POST http://localhost:3000/data \
   -H "Content-Type: application/json" \
   -d '{
     "page": 1,
-    "size": 25
+    "size": 25,
+    "orderBy": {
+      "field": "availableBikes",
+      "direction": "desc"
+    }
   }'
 ```
 
@@ -163,6 +174,7 @@ The React app:
 - Exposes a simple filter bar with field/operator/value inputs
 - Debounces filter requests (~300ms)
 - Uses server-side pagination via `page`, `size`, and `total`
+- Uses server-side sorting via `orderBy`
 
 Base API URL is currently hardcoded to `http://localhost:3000`.
 
@@ -209,7 +221,6 @@ cd frontend && npm run build
 
 - Prioritize automated tests first for both backend and frontend. There are several moving parts in schema inference, normalization, filtering, and UI mapping, so tests are essential to catch regressions early.
 - Add multiple-field filtering with `AND` logic (and optional `OR`)
-- Add `orderBy` support
 - Add `not` operator and nested conditions
 - Add `GET /data/:id`, update, and delete endpoints
 - Move frontend API base URL to environment config

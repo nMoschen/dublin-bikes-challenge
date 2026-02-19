@@ -4,10 +4,12 @@ import {
   FilterWhereClause,
   FilterField,
   Filters,
+  OrderBy,
   PaginatedData,
   StandardizedRow,
   StandarizedRowValue,
   FilterOperator,
+  SortDirection,
 } from "../types/data.js";
 import { Field, FieldType, RawRow } from "../types/schema.js";
 import {
@@ -23,19 +25,16 @@ import { getSchema } from "./schema.service.js";
 export async function getData(payload: unknown): Promise<PaginatedData> {
   const [rows, schema] = await Promise.all([getDatasetRows(), getSchema()]);
   const standardizedRows = rows.map((row) => buildStandarizedRow(row, schema));
-  const parsedFilters = parsePayload(payload);
+  const parsedFilters = parsePayload(payload, schema);
 
   const filteredRows = applyWhereFilter(
     standardizedRows,
     schema,
     parsedFilters.where,
   );
+  const sortedRows = applyOrderBy(filteredRows, parsedFilters.orderBy);
 
-  return buildPaginatedData(
-    filteredRows,
-    parsedFilters.page,
-    parsedFilters.size,
-  );
+  return buildPaginatedData(sortedRows, parsedFilters.page, parsedFilters.size);
 }
 
 function applyWhereFilter(
@@ -60,7 +59,7 @@ function applyWhereFilter(
   });
 }
 
-function parsePayload(payload: unknown): Filters {
+function parsePayload(payload: unknown, schema: Field[]): Filters {
   if (payload === undefined) {
     return getDefaultFilters();
   }
@@ -87,10 +86,11 @@ function parsePayload(payload: unknown): Filters {
     defaultValue: dataConstants.filters.pagination.defaultSize,
     maxValue: dataConstants.filters.pagination.maxSize,
   });
+  const orderBy = parseOrderBy(payload.orderBy, schema);
 
   const whereClause = payload.where;
   if (whereClause === undefined) {
-    return { page, size };
+    return { page, size, orderBy };
   }
 
   if (!isRecord(whereClause)) {
@@ -100,6 +100,7 @@ function parsePayload(payload: unknown): Filters {
   return {
     page,
     size,
+    orderBy,
     where: parseWhereClause(whereClause),
   };
 }
@@ -165,6 +166,40 @@ function parseWhereClause(
   };
 }
 
+function parseOrderBy(value: unknown, schema: Field[]): OrderBy | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!isRecord(value)) {
+    throw new DataQueryValidationError(`'orderBy' must be an object`);
+  }
+
+  const field = value.field;
+  if (typeof field !== "string" || field.trim() === "") {
+    throw new DataQueryValidationError(`'orderBy.field' must be a field name`);
+  }
+
+  const schemaField = schema.find(({ name }) => name === field);
+  if (schemaField === undefined) {
+    throw new DataQueryValidationError(
+      `Unknown orderBy field '${field}'. Use names from /schema response`,
+    );
+  }
+
+  const direction = value.direction;
+  if (!isSortDirection(direction)) {
+    throw new DataQueryValidationError(
+      `'orderBy.direction' must be one of: ${dataConstants.filters.supportedSortDirections.join(", ")}`,
+    );
+  }
+
+  return {
+    field,
+    direction,
+  };
+}
+
 function parsePaginationValue({
   value,
   key,
@@ -195,6 +230,68 @@ function parsePaginationValue({
   }
 
   return value;
+}
+
+function applyOrderBy(
+  rows: StandardizedRow[],
+  orderBy?: OrderBy,
+): StandardizedRow[] {
+  if (orderBy === undefined) {
+    return rows;
+  }
+
+  return rows.toSorted((leftRow, rightRow) => {
+    const leftValue = leftRow[orderBy.field];
+    const rightValue = rightRow[orderBy.field];
+
+    if (leftValue === null) {
+      return rightValue === null ? 0 : 1;
+    }
+
+    if (rightValue === null) {
+      return -1;
+    }
+
+    const comparison = compareSortValues(leftValue, rightValue);
+    if (orderBy.direction === SortDirection.Desc) {
+      return comparison * -1;
+    }
+    return comparison;
+  });
+}
+
+function compareSortValues(
+  left: Exclude<StandarizedRowValue, null>,
+  right: Exclude<StandarizedRowValue, null>,
+): number {
+  if (left instanceof Date && right instanceof Date) {
+    return comparePrimitiveValues(left.getTime(), right.getTime());
+  }
+
+  if (typeof left === "string" && typeof right === "string") {
+    // Using sensitivity here as it's case/accent insensitive ("OPEN" and "open" compare as equal)
+    return left.localeCompare(right, undefined, { sensitivity: "base" });
+  }
+
+  if (typeof left === "boolean" && typeof right === "boolean") {
+    return comparePrimitiveValues(Number(left), Number(right));
+  }
+
+  if (typeof left === "number" && typeof right === "number") {
+    return comparePrimitiveValues(left, right);
+  }
+
+  return comparePrimitiveValues(String(left), String(right));
+}
+
+function comparePrimitiveValues(
+  left: number | string,
+  right: number | string,
+): number {
+  if (left === right) {
+    return 0;
+  }
+  return left > right ? 1 : -1;
 }
 
 function buildPaginatedData(
@@ -376,6 +473,12 @@ function isEmptyRecord(value: Record<string, unknown>): boolean {
 
 function isFilterOperator(value: unknown): value is FilterOperator {
   return Object.values(FilterOperator).some((operator) => operator === value);
+}
+
+function isSortDirection(value: unknown): value is SortDirection {
+  return dataConstants.filters.supportedSortDirections.some(
+    (direction) => direction === value,
+  );
 }
 
 function isOperatorCompatible(
