@@ -7,7 +7,7 @@ import {
   OrderBy,
   PaginatedData,
   StandardizedRow,
-  StandarizedRowValue,
+  StandardizedRowValue,
   FilterOperator,
   SortDirection,
 } from "../types/data.js";
@@ -24,9 +24,10 @@ import { getSchema } from "./schema.service.js";
 
 export async function getData(payload: unknown): Promise<PaginatedData> {
   const [rows, schema] = await Promise.all([getDatasetRows(), getSchema()]);
-  const standardizedRows = rows.map((row) => buildStandarizedRow(row, schema));
-  const parsedFilters = parsePayload(payload, schema);
+  const standardizedRows = rows.map((row) => buildStandardizedRow(row, schema));
+  const parsedFilters = parseDataQuery(payload, schema);
 
+  // Query pipeline order matters: filter first, then sort the filtered set, then paginate.
   const filteredRows = applyWhereFilter(
     standardizedRows,
     schema,
@@ -59,7 +60,7 @@ function applyWhereFilter(
   });
 }
 
-function parsePayload(payload: unknown, schema: Field[]): Filters {
+function parseDataQuery(payload: unknown, schema: Field[]): Filters {
   if (payload === undefined) {
     return getDefaultFilters();
   }
@@ -244,6 +245,7 @@ function applyOrderBy(
     const leftValue = leftRow[orderBy.field];
     const rightValue = rightRow[orderBy.field];
 
+    // Keep nulls last regardless of direction to avoid sparse values taking over first pages.
     if (leftValue === null) {
       return rightValue === null ? 0 : 1;
     }
@@ -261,8 +263,8 @@ function applyOrderBy(
 }
 
 function compareSortValues(
-  left: Exclude<StandarizedRowValue, null>,
-  right: Exclude<StandarizedRowValue, null>,
+  left: Exclude<StandardizedRowValue, null>,
+  right: Exclude<StandardizedRowValue, null>,
 ): number {
   if (left instanceof Date && right instanceof Date) {
     return comparePrimitiveValues(left.getTime(), right.getTime());
@@ -313,7 +315,7 @@ function buildPaginatedData(
   };
 }
 
-function buildStandarizedRow(row: RawRow, schema: Field[]): StandardizedRow {
+function buildStandardizedRow(row: RawRow, schema: Field[]): StandardizedRow {
   const standardizedRow: StandardizedRow = {};
   for (const field of schema) {
     standardizedRow[field.name] = parseValue(row[field.display], field.type);
@@ -321,7 +323,10 @@ function buildStandarizedRow(row: RawRow, schema: Field[]): StandardizedRow {
   return standardizedRow;
 }
 
-function parseValue(value: unknown, fieldType: FieldType): StandarizedRowValue {
+function parseValue(
+  value: unknown,
+  fieldType: FieldType,
+): StandardizedRowValue {
   const normalizedValue = normalizeNullable(value);
 
   if (normalizedValue === null) {
@@ -350,7 +355,7 @@ function parseFilter(
 ): {
   field: Field;
   operator: FilterOperator;
-  value: StandarizedRowValue;
+  value: StandardizedRowValue;
 } {
   const [fieldName, condition] = getSingleFilterEntry(whereClause);
 
@@ -419,10 +424,10 @@ function getFilterOperation(condition: FilterField): {
 }
 
 function doesValueMatchFilter(
-  rowValue: StandarizedRowValue,
+  rowValue: StandardizedRowValue,
   fieldType: FieldType,
   operator: FilterOperator,
-  filterValue: StandarizedRowValue,
+  filterValue: StandardizedRowValue,
 ): boolean {
   if (operator === FilterOperator.Equal) {
     return areValuesEqual(rowValue, filterValue);
@@ -447,8 +452,8 @@ function doesValueMatchFilter(
 }
 
 function areValuesEqual(
-  left: StandarizedRowValue,
-  right: StandarizedRowValue,
+  left: StandardizedRowValue,
+  right: StandardizedRowValue,
 ): boolean {
   if (left instanceof Date && right instanceof Date) {
     return left.getTime() === right.getTime();

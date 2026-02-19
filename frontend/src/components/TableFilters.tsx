@@ -50,6 +50,7 @@ export const TableFilters: FC<TableFiltersProps> = memo(function TableFilters({
     setCurrentField(updatedField);
 
     if (!updatedField) {
+      // Clearing the field resets the whole filter so we don't keep stale type/value state.
       setCurrentType("");
       setCurrentValue("");
       setCurrentValueOptions([]);
@@ -64,6 +65,7 @@ export const TableFilters: FC<TableFiltersProps> = memo(function TableFilters({
       ({ field }) => field === updatedField,
     )!;
     if (currentType !== type) {
+      // Switching to a field with a different type invalidates the current value/input mode.
       setCurrentType(type);
       setCurrentValue("");
       setCurrentValueOptions(options);
@@ -76,6 +78,7 @@ export const TableFilters: FC<TableFiltersProps> = memo(function TableFilters({
       return;
     }
 
+    // Same type: preserve current value/operator and only refresh option values for the new field.
     setCurrentValueOptions(options);
 
     onChange({
@@ -106,7 +109,7 @@ export const TableFilters: FC<TableFiltersProps> = memo(function TableFilters({
   };
 
   return (
-    <Box sx={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
+    <Box sx={{ display: "flex", gap: "1rem", justifyContent: "flex-start" }}>
       <TextField
         sx={{ minWidth: 200 }}
         select

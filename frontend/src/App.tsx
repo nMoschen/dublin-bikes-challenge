@@ -37,6 +37,7 @@ function App() {
     ) => {
       getTableRows({
         filters: appliedFilters,
+        // DataGrid pages are 0-based, while the backend API expects pages to start at 1.
         page: appliedPagination.page + 1,
         size: appliedPagination.pageSize,
         sorting: appliedSorting,
@@ -78,6 +79,7 @@ function App() {
 
     const timeoutId = window.setTimeout(() => {
       setFilters(pendingFilters);
+      // Changing filters invalidates the current page selection, so always restart from page 1.
       setPagination((currentModel) => ({
         ...currentModel,
         page: 0,
@@ -121,7 +123,7 @@ function App() {
         sorting={sorting}
         onSortingChange={handleSortingChange}
         isLoading={isLoading}
-        onChange={handleFiltersChange}
+        onFiltersChange={handleFiltersChange}
       />
     </Box>
   );

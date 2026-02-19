@@ -26,7 +26,7 @@ export interface TableProps<TRow extends TableRow = TableRow> {
   onPaginationChange: (pagination: TablePagination) => void;
   sorting: TableSorting;
   onSortingChange: (sorting: TableSorting) => void;
-  onChange: (event: TableFiltersChangeEvent) => void;
+  onFiltersChange: (event: TableFiltersChangeEvent) => void;
   isLoading?: boolean;
 }
 
@@ -40,7 +40,7 @@ export const Table: FC<TableProps> = memo(function Table<
   onPaginationChange,
   sorting,
   onSortingChange,
-  onChange,
+  onFiltersChange,
   isLoading,
 }: TableProps<TRow>) {
   const filterFields = useMemo(() => {
@@ -66,7 +66,7 @@ export const Table: FC<TableProps> = memo(function Table<
       <TableFilters
         fields={filterFields}
         operators={filterOperators}
-        onChange={onChange}
+        onChange={onFiltersChange}
       />
       <DataGrid
         rows={rows}

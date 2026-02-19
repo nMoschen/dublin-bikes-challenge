@@ -17,7 +17,7 @@ export async function getTableColumns(): Promise<TableColumn[]> {
 export async function getTableRows(
   options: GetTableRowsOptions,
 ): Promise<GetTableRowsResult> {
-  const dataResponse = await getData(getDataFilters(options));
+  const dataResponse = await getData(buildDataQuery(options));
 
   if (!dataResponse.ok) {
     throw new Error(dataResponse.message);
@@ -85,13 +85,13 @@ function generateValueGetter(schemaType: SchemaType) {
   return undefined;
 }
 
-function getDataFilters({
+function buildDataQuery({
   filters,
   page,
   size,
   sorting,
 }: GetTableRowsOptions): Filters {
-  const orderBy = getOrderBy(sorting);
+  const orderBy = buildOrderBy(sorting);
 
   if (!filters?.length) {
     return { page, size, orderBy };
@@ -111,7 +111,8 @@ function parseDateValue(value: string | null) {
   return value !== null && parseISO(value);
 }
 
-function getOrderBy(sorting: TableSorting): OrderBy | undefined {
+function buildOrderBy(sorting: TableSorting): OrderBy | undefined {
+  // Backend currently supports sorting by one field, so we only map the first item.
   const [sortItem] = sorting;
   if (
     sortItem === undefined ||

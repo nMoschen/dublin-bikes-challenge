@@ -25,9 +25,9 @@ export interface OrderBy {
   direction: SortDirection;
 }
 
-export type StandardizedRow = Record<string, StandarizedRowValue>;
+export type StandardizedRow = Record<string, StandardizedRowValue>;
 
-export type StandarizedRowValue = boolean | Date | null | number | string;
+export type StandardizedRowValue = boolean | Date | null | number | string;
 
 export interface PaginatedData {
   data: StandardizedRow[];
