@@ -3,8 +3,13 @@ import { FieldType } from "../types/schema.js";
 
 export const dataConstants = {
   comparableFieldTypes: [FieldType.DATE, FieldType.FLOAT, FieldType.INTEGER],
+  validRequestKeys: ["where", "page", "size"],
   filters: {
     supportedOperators: Object.values(FilterOperator),
-    supportedKeys: ["where"],
+    pagination: {
+      defaultPage: 1,
+      defaultSize: 25,
+      maxSize: 100,
+    },
   },
 };

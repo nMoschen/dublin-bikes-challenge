@@ -1,9 +1,10 @@
 import { dataConstants } from "../constants/data.constants.js";
 import {
-  Filters,
   DataQueryValidationError,
   FilterWhereClause,
   FilterField,
+  Filters,
+  PaginatedData,
   StandardizedRow,
   StandarizedRowValue,
   FilterOperator,
@@ -19,18 +20,36 @@ import {
 import { getDatasetRows } from "./dataset.service.js";
 import { getSchema } from "./schema.service.js";
 
-export async function getData(payload: unknown): Promise<StandardizedRow[]> {
+export async function getData(payload: unknown): Promise<PaginatedData> {
   const [rows, schema] = await Promise.all([getDatasetRows(), getSchema()]);
   const standardizedRows = rows.map((row) => buildStandarizedRow(row, schema));
+  const parsedFilters = parsePayload(payload);
 
-  const filters = parsePayload(payload);
-  if (filters.where === undefined || isEmptyRecord(filters.where)) {
-    return standardizedRows;
+  const filteredRows = applyWhereFilter(
+    standardizedRows,
+    schema,
+    parsedFilters.where,
+  );
+
+  return buildPaginatedData(
+    filteredRows,
+    parsedFilters.page,
+    parsedFilters.size,
+  );
+}
+
+function applyWhereFilter(
+  rows: StandardizedRow[],
+  schema: Field[],
+  whereClause?: FilterWhereClause,
+): StandardizedRow[] {
+  if (whereClause === undefined || isEmptyRecord(whereClause)) {
+    return rows;
   }
 
-  const filter = parseFilter(filters.where, schema);
+  const filter = parseFilter(whereClause, schema);
 
-  return standardizedRows.filter((row) => {
+  return rows.filter((row) => {
     const rowValue = row[filter.field.name];
     return doesValueMatchFilter(
       rowValue,
@@ -43,23 +62,35 @@ export async function getData(payload: unknown): Promise<StandardizedRow[]> {
 
 function parsePayload(payload: unknown): Filters {
   if (payload === undefined) {
-    return {};
+    return getDefaultFilters();
   }
 
   if (!isRecord(payload)) {
     throw new DataQueryValidationError("Request body must be a JSON object");
   }
 
-  const invalidKeys = getInvalidFilterKeys(payload);
+  const invalidKeys = getInvalidRequestKeys(payload);
   if (invalidKeys.length > 0) {
     throw new DataQueryValidationError(
-      `Unsupported request key(s): ${invalidKeys.join(", ")}. Supported key(s): ${dataConstants.filters.supportedKeys.join(", ")}.`,
+      `Unsupported request key(s): ${invalidKeys.join(", ")}. Supported key(s): ${dataConstants.validRequestKeys.join(", ")}.`,
     );
   }
 
+  const page = parsePaginationValue({
+    value: payload.page,
+    key: "page",
+    defaultValue: dataConstants.filters.pagination.defaultPage,
+  });
+  const size = parsePaginationValue({
+    value: payload.size,
+    key: "size",
+    defaultValue: dataConstants.filters.pagination.defaultSize,
+    maxValue: dataConstants.filters.pagination.maxSize,
+  });
+
   const whereClause = payload.where;
   if (whereClause === undefined) {
-    return {};
+    return { page, size };
   }
 
   if (!isRecord(whereClause)) {
@@ -67,12 +98,21 @@ function parsePayload(payload: unknown): Filters {
   }
 
   return {
+    page,
+    size,
     where: parseWhereClause(whereClause),
   };
 }
 
-function getInvalidFilterKeys(payload: Record<string, unknown>): string[] {
-  const supportedKeys = new Set<string>(dataConstants.filters.supportedKeys);
+function getDefaultFilters(): Filters {
+  return {
+    page: dataConstants.filters.pagination.defaultPage,
+    size: dataConstants.filters.pagination.defaultSize,
+  };
+}
+
+function getInvalidRequestKeys(payload: Record<string, unknown>): string[] {
+  const supportedKeys = new Set<string>(dataConstants.validRequestKeys);
   return Object.keys(payload).filter((key) => !supportedKeys.has(key));
 }
 
@@ -122,6 +162,57 @@ function parseWhereClause(
     [fieldName]: {
       [operator]: value,
     },
+  };
+}
+
+function parsePaginationValue({
+  value,
+  key,
+  defaultValue,
+  maxValue,
+}: {
+  value: unknown;
+  key: "page" | "size";
+  defaultValue: number;
+  maxValue?: number;
+}): number {
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    throw new DataQueryValidationError(`'${key}' must be an integer`);
+  }
+
+  if (value < 1) {
+    throw new DataQueryValidationError(`'${key}' must be greater than 0`);
+  }
+
+  if (maxValue !== undefined && value > maxValue) {
+    throw new DataQueryValidationError(
+      `'${key}' must be lower than or equal to ${String(maxValue)}`,
+    );
+  }
+
+  return value;
+}
+
+function buildPaginatedData(
+  rows: StandardizedRow[],
+  page: number,
+  size: number,
+): PaginatedData {
+  const total = rows.length;
+
+  const startIndex = (page - 1) * size;
+  const endIndex = startIndex + size;
+  const data = rows.slice(startIndex, endIndex);
+
+  return {
+    data,
+    page,
+    size,
+    total,
   };
 }
 

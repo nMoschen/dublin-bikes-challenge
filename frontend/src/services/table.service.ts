@@ -15,15 +15,34 @@ export async function getTableColumns(): Promise<TableColumn[]> {
 }
 
 export async function getTableRows(
-  filters?: TableAppliedFilter[],
-): Promise<TableRow[]> {
-  const dataResponse = await getData(getDataFilters(filters));
+  options: GetTableRowsOptions,
+): Promise<GetTableRowsResult> {
+  const dataResponse = await getData(getDataFilters(options));
 
   if (!dataResponse.ok) {
     throw new Error(dataResponse.message);
   }
 
-  return dataResponse.data;
+  const { data, page, size, total } = dataResponse.data;
+  return {
+    rows: data,
+    page: page,
+    size: size,
+    total: total,
+  };
+}
+
+export interface GetTableRowsOptions {
+  filters?: TableAppliedFilter[];
+  page: number;
+  size: number;
+}
+
+export interface GetTableRowsResult {
+  rows: TableRow[];
+  page: number;
+  size: number;
+  total: number;
 }
 
 function generateTableColumn(schema: Schema): TableColumn {
@@ -65,19 +84,19 @@ function generateValueGetter(schemaType: SchemaType) {
   return undefined;
 }
 
-function getDataFilters(tableFilters?: TableAppliedFilter[]): Filters {
-  if (!tableFilters?.length) {
-    return {};
+function getDataFilters({ filters, page, size }: GetTableRowsOptions): Filters {
+  if (!filters?.length) {
+    return { page, size };
   }
 
-  const where = tableFilters.reduce((clause, { field, operator, value }) => {
+  const where = filters.reduce((clause, { field, operator, value }) => {
     if (field === "" || operator === "" || value === "") {
       return clause;
     }
     return { ...clause, [field]: { [operator]: value } };
   }, {});
 
-  return { where };
+  return { where, page, size };
 }
 
 function parseDateValue(value: string | null) {

@@ -1,6 +1,11 @@
 import { Box, Typography } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
-import { Table, type TableColumn, type TableRow } from "./components/Table";
+import {
+  Table,
+  type TableColumn,
+  type TablePagination,
+  type TableRow,
+} from "./components/Table";
 import { getTableColumns, getTableRows } from "./services/table.service";
 import type {
   TableAppliedFilter,
@@ -12,38 +17,55 @@ function App() {
   const [tableRows, setTableRows] = useState<TableRow[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [totalRows, setTotalRows] = useState<number>(0);
   const [pendingFilters, setPendingFilters] = useState<
     TableAppliedFilter[] | null
   >(null);
+  const [filters, setFilters] = useState<TableAppliedFilter[]>([]);
+  const [pagination, setPagination] = useState<TablePagination>({
+    page: 0,
+    pageSize: 25,
+  });
 
-  const fetchRows = useCallback((filters: TableAppliedFilter[]) => {
-    getTableRows(filters)
-      .then((rows) => {
+  const fetchRows = useCallback(
+    (
+      appliedFilters: TableAppliedFilter[],
+      { page, pageSize }: TablePagination,
+    ) => {
+      getTableRows({
+        filters: appliedFilters,
+        page: page + 1,
+        size: pageSize,
+      })
+        .then(({ rows, total }) => {
+          setErrorMessage(null);
+          setTableRows(rows);
+          setTotalRows(total);
+        })
+        .catch((error: Error) => {
+          setErrorMessage(error.message);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    getTableColumns()
+      .then((columns) => {
         setErrorMessage(null);
-        setTableRows(rows);
+        setTableColumns(columns);
       })
       .catch((error: Error) => {
         setErrorMessage(error.message);
-      })
-      .finally(() => {
-        setIsLoading(false);
       });
   }, []);
 
   useEffect(() => {
-    Promise.all([getTableColumns(), getTableRows([])])
-      .then(([columns, rows]) => {
-        setErrorMessage(null);
-        setTableColumns(columns);
-        setTableRows(rows);
-      })
-      .catch((error: Error) => {
-        setErrorMessage(error.message);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  }, []);
+    fetchRows(filters, pagination);
+  }, [fetchRows, filters, pagination]);
 
   useEffect(() => {
     if (pendingFilters === null) {
@@ -51,11 +73,15 @@ function App() {
     }
 
     const timeoutId = window.setTimeout(() => {
-      fetchRows(pendingFilters);
+      setFilters(pendingFilters);
+      setPagination((currentModel) => ({
+        ...currentModel,
+        page: 0,
+      }));
     }, 300);
 
     return () => window.clearTimeout(timeoutId);
-  }, [fetchRows, pendingFilters]);
+  }, [pendingFilters]);
 
   const handleFiltersChange = useCallback(
     ({ filters }: TableFiltersChangeEvent) => {
@@ -65,12 +91,20 @@ function App() {
     [],
   );
 
+  const handlePaginationChange = useCallback((model: TablePagination) => {
+    setIsLoading(true);
+    setPagination(model);
+  }, []);
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       {errorMessage && <Typography variant="body1">{errorMessage}</Typography>}
       <Table
         rows={tableRows}
         columns={tableColumns}
+        rowCount={totalRows}
+        pagination={pagination}
+        onPaginationChange={handlePaginationChange}
         isLoading={isLoading}
         onChange={handleFiltersChange}
       />

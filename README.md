@@ -5,21 +5,14 @@ This repository contains my solution for Noloco's take-home exercise: fetch the 
 ## Implemented scope
 
 - `GET /schema` returns dynamically inferred field metadata.
-- `POST /data` returns standardized rows and supports filtering with `where`.
+- `POST /data` returns paginated standardized rows and supports filtering with `where`.
 - Field names are normalized to camelCase.
 - Values are normalized to the most reasonable type.
 - Frontend table that:
   - Fetches schema/data
   - Renders columns dynamically
   - Lets users apply a single filter (`eq`, `gt`, `lt`)
-
-## Not implemented (extra features)
-
-- Filtering by multiple fields at the same time
-- `orderBy`
-- Pagination
-- `not` operator
-- `GET /data/:id`, `DELETE /data/:id`, `PATCH /data/:id`
+  - Supports server-side pagination (`page`, `size`, `total`)
 
 ## Tech stack
 
@@ -75,7 +68,7 @@ Normalization details:
 - numbers parse from numeric strings (via `Number`)
 - dates parse ISO + known formats (`yyyy-MM-dd HH:mm:ss`, `yyyy-MM-dd`, `dd/MM/yyyy`, `d/M/yyyy`, `dd-MM-yyyy`, `d-M-yyyy`)
 
-### 3) Data standardization + filtering
+### 3) Data standardization + filtering + pagination
 
 `POST /data` returns rows keyed by standardized schema names, not original display names.
 
@@ -85,6 +78,8 @@ Supported request shape:
 
 ```json
 {
+  "page": 1,
+  "size": 25,
   "where": {
     "<fieldName>": { "<operator>": "<value>" }
   }
@@ -101,6 +96,7 @@ Current behavior/constraints:
 - Only one field filter at a time
 - Invalid payloads/operators/field names return `400`
 - Date values are internally handled as `Date` and serialized as ISO strings in JSON responses
+- Pagination defaults are `page=1` and `size=25` (max size `100`)
 
 ## API examples
 
@@ -126,7 +122,21 @@ Example response item:
 ```bash
 curl -X POST http://localhost:3000/data \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{
+    "page": 1,
+    "size": 25
+  }'
+```
+
+Example response:
+
+```json
+{
+  "data": [],
+  "page": 1,
+  "size": 25,
+  "total": 111
+}
 ```
 
 ### `POST /data` (filtered)
@@ -135,6 +145,8 @@ curl -X POST http://localhost:3000/data \
 curl -X POST http://localhost:3000/data \
   -H "Content-Type: application/json" \
   -d '{
+    "page": 1,
+    "size": 10,
     "where": {
       "availableBikes": { "gt": 10 }
     }
@@ -150,6 +162,7 @@ The React app:
 - Maps schema types to DataGrid column types (`number`, `dateTime`, `boolean`, `singleSelect`, `string`)
 - Exposes a simple filter bar with field/operator/value inputs
 - Debounces filter requests (~300ms)
+- Uses server-side pagination via `page`, `size`, and `total`
 
 Base API URL is currently hardcoded to `http://localhost:3000`.
 
@@ -196,7 +209,7 @@ cd frontend && npm run build
 
 - Prioritize automated tests first for both backend and frontend. There are several moving parts in schema inference, normalization, filtering, and UI mapping, so tests are essential to catch regressions early.
 - Add multiple-field filtering with `AND` logic (and optional `OR`)
-- Add `orderBy` and pagination support
+- Add `orderBy` support
 - Add `not` operator and nested conditions
 - Add `GET /data/:id`, update, and delete endpoints
 - Move frontend API base URL to environment config

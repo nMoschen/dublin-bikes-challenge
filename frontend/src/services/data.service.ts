@@ -5,6 +5,8 @@ export type ItemValue = boolean | Date | null | number | string;
 
 export interface Filters {
   where?: FilterWhereClause;
+  page?: number;
+  size?: number;
 }
 export type FilterWhereClause = Record<string, FilterField>;
 export type FilterField = Partial<Record<FilterOperator, unknown>>;
@@ -14,8 +16,15 @@ export enum FilterOperator {
   LowerThan = "lt",
 }
 
+export interface PaginatedData<TData> {
+  data: TData[];
+  page: number;
+  size: number;
+  total: number;
+}
+
 export async function getData(filters?: Filters) {
-  return fetchApi<Item[]>({
+  return fetchApi<PaginatedData<Item>>({
     endpoint: "data",
     options: {
       method: "POST",
