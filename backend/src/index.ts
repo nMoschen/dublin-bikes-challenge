@@ -1,12 +1,15 @@
 import cors from "cors";
 import express, { ErrorRequestHandler } from "express";
 
-import { schemaRouter } from "./routes/schema.js";
+import { dataRouter } from "./routes/data.routes.js";
+import { schemaRouter } from "./routes/schema.routes.js";
 
 const app = express();
 const port = process.env.PORT ?? "9001";
 
 app.use(cors());
+app.use(express.json());
+app.use(dataRouter);
 app.use(schemaRouter);
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

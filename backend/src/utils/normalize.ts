@@ -23,7 +23,6 @@ export function normalizeText(value: unknown): string {
   if (typeof value === "string") {
     return value.trim();
   }
-
   return String(value);
 }
 
