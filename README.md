@@ -15,6 +15,28 @@ This repository contains my solution for Noloco's take-home exercise: fetch the 
   - Supports server-side pagination (`page`, `size`, `total`)
   - Supports server-side sorting (`orderBy`)
 
+## It Works On My Machine (proof)
+
+### Quick walkthrough
+
+[![Watch here](https://img.youtube.com/vi/3u-i01mxtoM/0.jpg)](https://www.youtube.com/watch?v=3u-i01mxtoM)
+
+
+### Filtering
+
+[![Watch here](https://img.youtube.com/vi/vRXP3Xl2uZY/0.jpg)](https://www.youtube.com/watch?v=vRXP3Xl2uZY)
+
+
+### Sorting
+
+[![Watch here](https://img.youtube.com/vi/adCY1pOv5pY/0.jpg)](https://www.youtube.com/watch?v=adCY1pOv5pY)
+
+
+### How it all works together
+
+[![Watch here](https://img.youtube.com/vi/gPA0DaTcw-w/0.jpg)](https://www.youtube.com/watch?v=gPA0DaTcw-w)
+
+
 ## Tech stack
 
 ### Backend
