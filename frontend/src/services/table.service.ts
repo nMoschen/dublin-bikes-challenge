@@ -55,6 +55,7 @@ function generateTableColumn(schema: Schema): TableColumn {
     align: "left",
     valueGetter: generateValueGetter(schema.type),
     options: schema.options,
+    minWidth: 130,
   };
 }
 
@@ -126,4 +127,53 @@ function buildOrderBy(sorting: TableSorting): OrderBy | undefined {
     field: sortItem.field,
     direction: sortItem.sort,
   };
+}
+
+export function isFilterComplete(filter: TableFilter): boolean {
+  return filter.field !== "" && filter.operator !== "" && filter.value !== "";
+}
+
+export function isFilterEmpty(filter: TableFilter): boolean {
+  return filter.field === "" && filter.operator === "" && filter.value === "";
+}
+
+export function resolveFiltersForQuery(
+  filters: TableFilter[],
+): null | TableFilter[] {
+  if (filters.length === 0) {
+    return [];
+  }
+
+  const hasAnyInput = filters.some((filter) => !isFilterEmpty(filter));
+  const hasIncompleteFilter = filters.some(
+    (filter) => !isFilterEmpty(filter) && !isFilterComplete(filter),
+  );
+
+  if (hasIncompleteFilter) {
+    return null;
+  }
+
+  if (!hasAnyInput) {
+    return [];
+  }
+
+  return filters;
+}
+
+export function areFiltersEqual(
+  left: TableFilter[],
+  right: TableFilter[],
+): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((leftFilter, index) => {
+    const rightFilter = right[index];
+    return (
+      leftFilter.field === rightFilter.field &&
+      leftFilter.operator === rightFilter.operator &&
+      leftFilter.value === rightFilter.value
+    );
+  });
 }

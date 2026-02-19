@@ -7,13 +7,18 @@ import {
   type TableRow,
   type TableSorting,
 } from "./components/Table";
-import { getTableColumns, getTableRows } from "./services/table.service";
+import {
+  areFiltersEqual,
+  getTableColumns,
+  getTableRows,
+  resolveFiltersForQuery,
+} from "./services/table.service";
 import type {
   TableFilter,
   TableFiltersChangeEvent,
 } from "./components/TableFilters";
 
-function App() {
+export function App() {
   const [tableColumns, setTableColumns] = useState<TableColumn[]>([]);
   const [tableRows, setTableRows] = useState<TableRow[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -22,7 +27,7 @@ function App() {
   const [pendingFilters, setPendingFilters] = useState<TableFilter[] | null>(
     null,
   );
-  const [filters, setFilters] = useState<TableFilter[]>([]);
+  const [appliedFilters, setAppliedFilters] = useState<TableFilter[]>([]);
   const [pagination, setPagination] = useState<TablePagination>({
     page: 0,
     pageSize: 25,
@@ -69,8 +74,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetchRows(filters, pagination, sorting);
-  }, [fetchRows, filters, pagination, sorting]);
+    fetchRows(appliedFilters, pagination, sorting);
+  }, [fetchRows, appliedFilters, pagination, sorting]);
 
   useEffect(() => {
     if (pendingFilters === null) {
@@ -78,7 +83,7 @@ function App() {
     }
 
     const timeoutId = window.setTimeout(() => {
-      setFilters(pendingFilters);
+      setAppliedFilters(pendingFilters);
       // Changing filters invalidates the current page selection, so always restart from page 1.
       setPagination((currentModel) => ({
         ...currentModel,
@@ -90,11 +95,20 @@ function App() {
   }, [pendingFilters]);
 
   const handleFiltersChange = useCallback(
-    ({ filters }: TableFiltersChangeEvent) => {
+    ({ filters: nextFilters }: TableFiltersChangeEvent) => {
+      const queryFilters = resolveFiltersForQuery(nextFilters);
+      // Ignore partial filter edits and only query when the filter is complete (or fully cleared).
+      if (
+        queryFilters === null ||
+        areFiltersEqual(queryFilters, appliedFilters)
+      ) {
+        return;
+      }
+
       setIsLoading(true);
-      setPendingFilters(filters);
+      setPendingFilters(queryFilters);
     },
-    [],
+    [appliedFilters],
   );
 
   const handlePaginationChange = useCallback((model: TablePagination) => {
@@ -112,7 +126,9 @@ function App() {
   }, []);
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+    <Box
+      sx={{ display: "flex", flexDirection: "column", gap: "1rem", p: "2rem" }}
+    >
       {errorMessage && <Typography variant="body1">{errorMessage}</Typography>}
       <Table
         rows={tableRows}
@@ -128,5 +144,3 @@ function App() {
     </Box>
   );
 }
-
-export default App;
